@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Web Bluetooth Example</title>
+</head>
+<body>
+
+<button id="bluetoothButton">Connect to Bluetooth</button>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const bluetoothButton = document.getElementById('bluetoothButton');
+
+    bluetoothButton.addEventListener('click', () => {
+      // Check if Web Bluetooth is supported
+      if ('bluetooth' in navigator) {
+        // Request Bluetooth device
+        navigator.bluetooth.requestDevice({
+          filters: [{ services: ['00001816-0000-1000-8000-00805f9b34fb'] }]
+        })
+        .then(device => {
+          // Connect to the device
+          return device.gatt.connect();
+        })
+        .then(server => {
+          // Get the Cycling Power Service
+          return server.getPrimaryService('00001816-0000-1000-8000-00805f9b34fb');
+        })
+        .then(service => {
+          // Get the Resistance Characteristic
+          return service.getCharacteristic('00002a5b-0000-1000-8000-00805f9b34fb');
+        })
+        .then(characteristic => {
+          // Read the current resistance value
+          return characteristic.readValue();
+        })
+        .then(value => {
+          // Convert the resistance value from DataView to Uint8Array
+          const resistanceValue = new Uint8Array(value.buffer)[0];
+          console.log(`Current resistance: ${resistanceValue}`);
+          
+          // Write a new resistance value
+          const newResistanceValue = 5; // Example value, replace with desired resistance
+          const newValue = new Uint8Array([newResistanceValue]);
+          return characteristic.writeValue(newValue);
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+      } else {
+        console.log('Web Bluetooth not supported');
+      }
+    });
+  });
+</script>
+
+</body>
+</html>
