@@ -1,60 +1,69 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Web Bluetooth Example</title>
+    <title>Indoor Bike Resistance Control</title>
 </head>
 <body>
+    <button id="connectButton">Connect to Bike</button>
+    <label for="resistanceLevel">Resistance Level:</label>
+    <input type="number" id="resistanceLevel" min="0" max="100">
+    <button id="setResistanceButton">Set Resistance</button>
+    <button id="getResistanceButton">Get Resistance</button>
+    <div id="resistanceValue">Resistance Value: Not Available</div>
+    
+    <script>
+        // Define your service and characteristic UUIDs here
+        const SERVICE_UUID = 0x1826;
+        const CHARACTERISTIC_UUID = 0x2ad9;
 
-<button id="bluetoothButton">Connect to Bluetooth</button>
+        let bikeCharacteristic;
 
-<script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const bluetoothButton = document.getElementById('bluetoothButton');
-
-    bluetoothButton.addEventListener('click', () => {
-      // Check if Web Bluetooth is supported
-      if ('bluetooth' in navigator) {
-        // Request Bluetooth device
-        navigator.bluetooth.requestDevice({
-          filters: [{ services: ['00001816-0000-1000-8000-00805f9b34fb'] }]
-        })
-        .then(device => {
-          // Connect to the device
-          return device.gatt.connect();
-        })
-        .then(server => {
-          // Get the Cycling Power Service
-          return server.getPrimaryService('00001816-0000-1000-8000-00805f9b34fb');
-        })
-        .then(service => {
-          // Get the Resistance Characteristic
-          return service.getCharacteristic('00002a5b-0000-1000-8000-00805f9b34fb');
-        })
-        .then(characteristic => {
-          // Read the current resistance value
-          return characteristic.readValue();
-        })
-        .then(value => {
-          // Convert the resistance value from DataView to Uint8Array
-          const resistanceValue = new Uint8Array(value.buffer)[0];
-          console.log(`Current resistance: ${resistanceValue}`);
-          
-          // Write a new resistance value
-          const newResistanceValue = 5; // Example value, replace with desired resistance
-          const newValue = new Uint8Array([newResistanceValue]);
-          return characteristic.writeValue(newValue);
-        })
-        .catch(error => {
-          console.error('Error:', error);
+        document.getElementById('connectButton').addEventListener('click', async () => {
+            try {
+                const device = await navigator.bluetooth.requestDevice({ filters: [{ services: [SERVICE_UUID] }] });
+                const server = await device.gatt.connect();
+                const service = await server.getPrimaryService(SERVICE_UUID);
+                bikeCharacteristic = await service.getCharacteristic(CHARACTERISTIC_UUID);
+                alert('Connected to bike. You can now set and get resistance.');
+            } catch (error) {
+                console.error('Bluetooth error: ' + error);
+            }
         });
-      } else {
-        console.log('Web Bluetooth not supported');
-      }
-    });
-  });
-</script>
 
+        document.getElementById('setResistanceButton').addEventListener('click', () => {
+            if (bikeCharacteristic) {
+                const resistanceLevel = document.getElementById('resistanceLevel').valueAsNumber;
+                if (!isNaN(resistanceLevel) && resistanceLevel >= 0 && resistanceLevel <= 255) {
+                    const data = new Uint8Array([resistanceLevel]);
+                    bikeCharacteristic.writeValue(data)
+                        .then(() => {
+                            console.log('Resistance set to ' + resistanceLevel);
+                        })
+                        .catch(error => {
+                            console.error('Resistance control error: ' + error);
+                        });
+                } else {
+                    alert('Please enter a valid resistance level (0-255).');
+                }
+            } else {
+                alert('Please connect to the bike first.');
+            }
+        });
+
+        document.getElementById('getResistanceButton').addEventListener('click', () => {
+            if (bikeCharacteristic) {
+                bikeCharacteristic.readValue()
+                    .then(dataView => {
+                        const resistanceValue = dataView.getUint8(0);
+                        document.getElementById('resistanceValue').textContent = 'Resistance Value: ' + resistanceValue;
+                    })
+                    .catch(error => {
+                        console.error('Error reading resistance value: ' + error);
+                    });
+            } else {
+                alert('Please connect to the bike first.');
+            }
+        });
+    </script>
 </body>
 </html>
